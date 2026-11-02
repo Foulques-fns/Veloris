@@ -2,7 +2,7 @@ import { getSessionUser } from "@/lib/session";
 import AppShell from "@/components/AppShell";
 import PricingPage from "@/components/PricingPage";
 
-export const metadata = { title: "Plans — VELORIS" };
+export const metadata = { title: "Offres — VELORIS" };
 export const dynamic = "force-dynamic";
 
 export default async function Pricing() {

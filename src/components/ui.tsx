@@ -152,17 +152,73 @@ export function Toaster() {
   );
 }
 
-export function Logo({ size = 26 }: { size?: number }) {
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
+import { motion } from "framer-motion";
+
+export function Logo({ size = 26, animated = true, className }: { size?: number, animated?: boolean, className?: string }) {
+  const content = (
     <img
-      src="/logo.png"
+      src="/veloris-logo.png"
       alt="VELORIS"
       width={size}
       height={size}
-      style={{ width: size, height: size, boxShadow: "0 0 22px -6px var(--accent), 0 0 22px -8px var(--accent-2)" }}
-      className="rounded-[26%] object-cover select-none"
+      style={{ 
+        width: size, 
+        height: size, 
+        boxShadow: `0 0 ${Math.round(size * 0.6)}px -4px rgba(201,162,39,0.6)` 
+      }}
+      className={clsx("rounded-[22%] object-cover select-none border border-[var(--accent)]/10", className)}
       draggable={false}
     />
+  );
+
+  if (!animated) return content;
+
+  return (
+    <motion.div
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      transition={{ type: "spring", stiffness: 400, damping: 17 }}
+    >
+      {content}
+    </motion.div>
+  );
+}
+
+export function ActionButton({ title, onClick, icon: Icon, disabled, active }: { title: string; onClick: () => void; icon: React.ComponentType<{ className?: string }>; disabled?: boolean, active?: boolean }) {
+  return (
+    <motion.button
+      whileHover={{ scale: 1.1, y: -2 }}
+      whileTap={{ scale: 0.9 }}
+      title={title}
+      aria-label={title}
+      disabled={disabled}
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      className={clsx(
+        "p-2 rounded-xl transition-all disabled:opacity-40",
+        active ? "bg-[var(--accent)] text-black" : "text-muted hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 glass"
+      )}
+    >
+      <Icon className="w-4 h-4" />
+    </motion.button>
+  );
+}
+
+/** Text wordmark: "VELORIS" in gold serif */
+export function VelorisWordmark({ size = "lg" }: { size?: "sm" | "md" | "lg" | "xl" }) {
+  const cls = { sm: "text-sm tracking-[0.14em]", md: "text-base tracking-[0.15em]", lg: "text-lg tracking-[0.16em]", xl: "text-2xl tracking-[0.18em]" }[size];
+  return (
+    <span
+      className={`font-bold ${cls} select-none`}
+      style={{
+        fontFamily: "Georgia, 'Times New Roman', serif",
+        background: "linear-gradient(92deg, #a07810 0%, #c9a227 40%, #f5d96e 65%, #c9a227 85%, #a07810 100%)",
+        WebkitBackgroundClip: "text",
+        backgroundClip: "text",
+        color: "transparent",
+        textShadow: "none",
+      }}
+    >
+      VELORIS
+    </span>
   );
 }

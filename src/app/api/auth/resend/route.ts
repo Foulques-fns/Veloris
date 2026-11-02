@@ -2,7 +2,7 @@ import { db } from "@/db";
 import { users, verificationCodes } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { randomCode, sha256 } from "@/lib/password";
-import { sendVerificationEmail, smtpConfigured } from "@/lib/email";
+import { sendVerificationEmail, emailConfigured } from "@/lib/email";
 import { rateLimit } from "@/lib/ratelimit";
 import { err, json, readJson } from "@/lib/http";
 
@@ -38,5 +38,5 @@ export async function POST(req: Request) {
   } catch (e) {
     console.error("SMTP send failed:", e);
   }
-  return json({ ok: true, emailSent: sent, devCode: smtpConfigured() ? undefined : code });
+  return json({ ok: true, emailSent: sent, devCode: emailConfigured() ? undefined : code });
 }

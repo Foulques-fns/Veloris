@@ -7,28 +7,29 @@ import {
   Activity, ArrowLeft, BadgeCheck, Bug, Clapperboard, Cpu, Database, FileAudio, Image as ImageIcon,
   LogOut, MessageSquareText, Save, Search, ShieldCheck, SlidersHorizontal, Trash2, Users, X,
 } from "lucide-react";
-import { Badge, Modal, Spinner, Toggle, toast } from "./ui";
+import { Badge, Modal, Spinner, Toggle, toast, VelorisWordmark, Logo } from "./ui";
+import { motion, AnimatePresence } from "framer-motion";
+import { useI18n } from "@/context/I18nContext";
 
 type Tab = "overview" | "users" | "limits" | "errors";
 
 /* ────────────────────────────────────────────────────────────────────────── */
 
 export default function AdminApp({ admin }: { admin: { name: string; email: string } }) {
+  const { t } = useI18n();
   const [tab, setTab] = useState<Tab>("overview");
   return (
-    <div className="min-h-dvh flex flex-col lg:flex-row relative admin-shell">
+    <div className="min-h-dvh flex flex-col lg:flex-row relative admin-shell bg-black">
       <div className="aurora opacity-70"><div className="a1" /><div className="a2" /></div>
 
       {/* rail */}
       <aside className="relative z-10 lg:w-60 shrink-0 border-b lg:border-b-0 lg:border-r border-[var(--border)] bg-[var(--bg-elev)] flex lg:flex-col">
         <div className="flex lg:flex-col flex-1 items-center lg:items-stretch lg:gap-1 px-3 py-2 lg:p-4 overflow-x-auto">
-          <div className="hidden lg:flex items-center gap-2.5 px-1 pb-5">
-            <span className="w-8 h-8 rounded-lg grid place-items-center text-white" style={{ background: "linear-gradient(135deg,#007bff,#ff073a)" }}>
-              <ShieldCheck className="w-4.5 h-4.5" />
-            </span>
+          <div className="hidden lg:flex items-center gap-4 px-1 pb-8">
+            <Logo size={36} />
             <div>
-              <div className="text-[13px] font-semibold tracking-tight">VELORIS Admin</div>
-              <div className="text-[10px] text-muted">secure console</div>
+              <VelorisWordmark size="md" />
+              <div className="text-[9px] uppercase tracking-[0.2em] text-muted font-bold mt-1">Admin Console</div>
             </div>
           </div>
           <RailItem tab="overview" active={tab} set={setTab} icon={Activity} label="Overview" />
@@ -43,18 +44,35 @@ export default function AdminApp({ admin }: { admin: { name: string; email: stri
       </aside>
 
       {/* content */}
-      <main className="relative z-10 flex-1 min-w-0 px-4 lg:px-8 py-6 lg:py-8 max-w-6xl">
-        <div className="flex items-center justify-between mb-6 anim-fade-up">
+      <main className="relative z-10 flex-1 min-w-0 px-4 lg:px-12 py-10 max-w-6xl overflow-y-auto">
+        <motion.div 
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="flex items-center justify-between mb-10"
+        >
           <div>
-            <h1 className="text-lg font-semibold tracking-tight capitalize">{tab === "limits" ? "Limits & models" : tab === "overview" ? "Overview" : tab === "users" ? "Users" : "API errors"}</h1>
-            <p className="text-[12px] text-muted">Signed in as {admin.email} · role verified server-side</p>
+            <h1 className="text-3xl font-black tracking-tight uppercase" style={{ fontFamily: 'Georgia, serif' }}>
+              {tab === "limits" ? "Plafonds & Modèles" : tab === "overview" ? "Aperçu" : tab === "users" ? "Utilisateurs" : "Erreurs API"}
+            </h1>
+            <p className="text-[11px] uppercase tracking-widest font-bold text-muted mt-2">Connecté: {admin.email}</p>
           </div>
-          <Badge tone="accent"><ShieldCheck className="w-3 h-3" /> ADMIN</Badge>
-        </div>
-        {tab === "overview" && <Overview />}
-        {tab === "users" && <UsersTab currentEmail={admin.email} />}
-        {tab === "limits" && <LimitsTab />}
-        {tab === "errors" && <ErrorsTab />}
+          <Badge tone="accent"><ShieldCheck className="w-3.5 h-3.5" /> ACCÈS TOTAL</Badge>
+        </motion.div>
+
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={tab}
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {tab === "overview" && <Overview />}
+            {tab === "users" && <UsersTab currentEmail={admin.email} />}
+            {tab === "limits" && <LimitsTab />}
+            {tab === "errors" && <ErrorsTab />}
+          </motion.div>
+        </AnimatePresence>
       </main>
     </div>
   );
@@ -400,7 +418,7 @@ type SettingsData = {
     audio: { id: string; title: string; health: string; kind: string }[];
     video: { id: string; title: string; health: string }[];
   };
-  provider: { keyConfigured: boolean; smtpConfigured: boolean };
+  provider: { keyConfigured: boolean; emailConfigured: boolean };
 };
 
 const QUOTA_FIELDS: { key: string; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
@@ -457,7 +475,7 @@ function LimitsTab() {
       {/* provider banners */}
       <div className="grid sm:grid-cols-2 gap-4">
         <StatusCard ok={data.provider.keyConfigured} title="Pollinations API key" desc={data.provider.keyConfigured ? "POLLINATIONS_API_KEY is configured — AI features live." : "Not configured. Set POLLINATIONS_API_KEY in .env and restart."} />
-        <StatusCard ok={data.provider.smtpConfigured} title="SMTP email" desc={data.provider.smtpConfigured ? "Verification & reset emails are being sent." : "Not configured. Codes are logged to the server console and shown in dev."} />
+        <StatusCard ok={data.provider.emailConfigured} title="Email (Resend / SMTP)" desc={data.provider.emailConfigured ? "Verification & reset emails are being sent." : "Not configured. Codes are logged to the server console and shown in dev."} />
       </div>
 
       {/* quotas */}

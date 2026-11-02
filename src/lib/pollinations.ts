@@ -44,6 +44,12 @@ export type ChatCompletionBody = {
   presence_penalty?: number;
 };
 
+export type ClassicFallbackResult = {
+  content: string;
+  model: string;
+  degraded: boolean;
+};
+
 /** OpenAI-compatible streaming chat completion. Returns the raw upstream Response. */
 export async function chatCompletionStream(body: ChatCompletionBody, userId?: string): Promise<Response> {
   const res = await fetch(`${BASE}/v1/chat/completions`, {
@@ -80,6 +86,59 @@ export async function chatCompletion(
   return { content: json.choices?.[0]?.message?.content ?? "", raw: json };
 }
 
+/**
+ * Official Pollinations Classic fallback.
+ * Used only when gen.pollinations.ai is temporarily failing.
+ * It is rate-limited, but it keeps the chat usable instead of hard-breaking.
+ */
+export async function classicChatCompletionFallback(
+  body: ChatCompletionBody,
+  userId?: string,
+): Promise<ClassicFallbackResult> {
+  // Classic is text-only in practice; flatten multimodal content to plain text.
+  const messages = body.messages.map((m) => ({
+    role: m.role,
+    content: typeof m.content === "string" ? m.content : m.content.map((part) => String((part as { text?: string }).text ?? "")).join("\n"),
+  }));
+
+  const classicModel = "pollinations/classic-gpt-oss-20b";
+
+  const res = await fetch("https://text.pollinations.ai/openai", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "openai",
+      messages,
+      temperature: body.temperature,
+      seed: body.seed,
+      max_tokens: body.max_tokens,
+    }),
+    signal: AbortSignal.timeout(35_000),
+  });
+
+  if (!res.ok) {
+    const retryAfter = res.headers.get("retry-after");
+    const text = await res.text().catch(() => "");
+    await logApiError("https://text.pollinations.ai/openai", `classic ${res.status}: ${text.slice(0, 2000)}`, userId, res.status);
+    if (res.status === 402 || res.status === 429 || res.status === 503) {
+      throw new PollinationsError(
+        res.status,
+        retryAfter
+          ? `VELORIS is waiting for the free Pollinations fallback window. Retry in ~${retryAfter}s.`
+          : "VELORIS fallback is rate-limited right now. Please retry in a few seconds.",
+      );
+    }
+    throw new PollinationsError(res.status, upstreamMessage(res.status, text));
+  }
+
+  const json = (await res.json().catch(() => ({}))) as { choices?: { message?: { content?: string } }[] };
+  return {
+    content: json.choices?.[0]?.message?.content?.trim() || "(no response)",
+    model: classicModel,
+    degraded: true,
+  };
+}
+
 export type ImageGenResult = { bytes: Buffer; mime: string; seed?: number };
 
 async function extractImage(json: unknown): Promise<ImageGenResult> {
@@ -108,12 +167,42 @@ export type ImageGenInput = {
 };
 
 /** Text-to-image via POST /v1/images/generations (verified against the OpenAPI schema). */
+/**
+ * Optimizes a prompt for better image/media results.
+ * Detects non-English prompts and enhances them with descriptive detail.
+ */
+async function optimizePrompt(prompt: string, userId?: string): Promise<string> {
+  try {
+    // If prompt is very short or looks non-English, we use a fast chat model to optimize it.
+    // This adds ~1-2s but significantly improves Pollinations results which prefer English.
+    const isEnglish = /^[a-zA-Z0-9\s.,!?'"-]+$/.test(prompt);
+    if (prompt.length > 30 && isEnglish) return prompt;
+
+    const { content } = await chatCompletion({
+      model: "openai/gpt-5.4-nano",
+      messages: [
+        { 
+          role: "system", 
+          content: "You are a prompt engineer. Translate the user prompt to English if it is in another language. Then, enhance it into a high-quality, descriptive image generation prompt. Output ONLY the optimized English prompt. Keep it under 200 words." 
+        },
+        { role: "user", content: prompt }
+      ]
+    }, userId);
+    
+    return content.trim() || prompt;
+  } catch {
+    return prompt;
+  }
+}
+
 export async function generateImage(input: ImageGenInput, userId?: string): Promise<ImageGenResult> {
+  const optimized = await optimizePrompt(input.prompt, userId);
+  
   const res = await fetch(`${BASE}/v1/images/generations`, {
     method: "POST",
     headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({
-      prompt: input.prompt,
+      prompt: optimized,
       model: input.model,
       n: 1,
       size: `${input.width ?? 1024}x${input.height ?? 1024}`,

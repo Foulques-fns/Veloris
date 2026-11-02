@@ -9,7 +9,7 @@ export default async function ResetPage({ searchParams }: { searchParams: Promis
   const email = (sp.email ?? "").trim().toLowerCase();
   if (!email) redirect("/forgot");
   return (
-    <AuthShell title="Choose a new password" sub="Enter the reset code from your email and pick a new password.">
+    <AuthShell title="Nouveau mot de passe" sub="Entrez le code reçu par e-mail et choisissez votre nouveau mot de passe.">
       <ResetForm email={email} devCode={sp.dev} />
     </AuthShell>
   );

@@ -3,10 +3,13 @@
 import { useCallback, useEffect, useState } from "react";
 import clsx from "clsx";
 import {
-  ArrowDownToLine, Dices, ImagePlus, Loader2, Maximize2, RefreshCw, ScanSearch, Sparkles, Wand2, X,
+  ArrowDownToLine, Dices, ImagePlus, Loader2, Maximize2, RefreshCw, ScanSearch, Sparkles, Wand2, X, Copy,
 } from "lucide-react";
 import { Markdown } from "./Markdown";
 import { Badge, Modal, Spinner, toast } from "./ui";
+import { motion, AnimatePresence } from "framer-motion";
+import { useI18n } from "@/context/I18nContext";
+import confetti from "canvas-confetti";
 
 type ImgModel = { id: string; title: string; acceptsImages: boolean; maxReferenceImages: number; health: string };
 
@@ -24,6 +27,7 @@ const ASPECTS = [
 ];
 
 export default function ImageStudio() {
+  const { t } = useI18n();
   const [models, setModels] = useState<ImgModel[]>([]);
   const [model, setModel] = useState("");
   const [prompt, setPrompt] = useState("");
@@ -116,6 +120,12 @@ export default function ImageStudio() {
         }
         produced++;
         setQuota(data.quota);
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ['#C9A227', '#F5D96E', '#A07810']
+        });
       }
       if (produced > 0) {
         toast(produced > 1 ? `${produced} images générées.` : "Image générée.", "ok");
@@ -275,43 +285,75 @@ export default function ImageStudio() {
       {/* ── gallery ── */}
       <section className="space-y-4">
         {images.length === 0 && !busy ? (
-          <div className="glass rounded-3xl p-14 text-center anim-fade-up">
-            <ImagePlus className="w-10 h-10 text-muted mx-auto" />
-            <h2 className="font-semibold mt-4">No images yet</h2>
-            <p className="text-sm text-muted mt-1.5 max-w-sm mx-auto">Your creations will appear here. All free-tier verified models — FLUX, MAI, Z-Image &amp; DreamShaper — are ready.</p>
-          </div>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass rounded-3xl p-20 text-center border-white/5 relative overflow-hidden">
+             <div className="absolute inset-0 bg-gradient-to-b from-[var(--accent)]/5 to-transparent pointer-events-none" />
+            <ImagePlus className="w-12 h-12 text-[var(--accent)] mx-auto mb-4" />
+            <h2 className="font-bold text-xl mb-2" style={{ fontFamily: 'Georgia, serif' }}>{t('images.no_generations')}</h2>
+            <p className="text-sm text-muted max-w-sm mx-auto leading-relaxed">{t('images.no_generations_desc')}</p>
+          </motion.div>
         ) : (
-          <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
-            {busy && (
-              <div className="panel rounded-2xl overflow-hidden aspect-square grid place-items-center anim-fade-in">
-                <div className="text-center">
-                  <div className="typing-dot mx-auto mb-3" style={{ width: 10, height: 10 }} />
-                  <p className="text-xs text-muted">Painting pixels…</p>
-                </div>
-              </div>
-            )}
-            {images.map((img) => (
-              <figure key={img.id} className="group panel rounded-2xl overflow-hidden card-hover anim-fade-up">
-                <button className="block w-full aspect-square overflow-hidden bg-[var(--panel)]" onClick={() => setView(img)}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={img.url} alt={img.meta?.prompt ?? img.name} loading="lazy" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" />
-                </button>
-                <figcaption className="p-3">
-                  <p className="text-[12px] text-soft line-clamp-2 leading-snug min-h-[2.1em]">{img.meta?.prompt || img.name}</p>
-                  <div className="flex items-center justify-between mt-2.5">
-                    <span className="chip !text-[9.5px] font-mono">{img.meta?.model?.split("/").pop()}</span>
-                    <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <IconBtn title="View" onClick={() => setView(img)}><Maximize2 className="w-3.5 h-3.5" /></IconBtn>
-                      <IconBtn title="Regenerate" onClick={() => generate({ prompt: img.meta?.prompt, model: img.meta?.model, w: img.meta?.width, h: img.meta?.height })}><RefreshCw className="w-3.5 h-3.5" /></IconBtn>
-                      <IconBtn title="Analyze with vision AI" onClick={() => { setView(img); analyze(img); }}><ScanSearch className="w-3.5 h-3.5" /></IconBtn>
-                      <a href={img.url} download={img.name} className="p-1.5 rounded-md hover:bg-[var(--panel)] text-muted hover:text-[var(--text)]" title="Download">
-                        <ArrowDownToLine className="w-3.5 h-3.5" />
-                      </a>
+          <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-6">
+            <AnimatePresence>
+              {busy && (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.9 }} 
+                  animate={{ opacity: 1, scale: 1 }} 
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  className="panel rounded-3xl overflow-hidden aspect-square grid place-items-center relative border-[var(--accent)]/20"
+                >
+                   <div className="absolute inset-0 gen-pulse opacity-20" />
+                   <div className="text-center z-10">
+                      <div className="orbit-wrap mb-4">
+                        <div className="w-12 h-12 rounded-full border-2 border-dashed border-[var(--accent)] animate-spin" />
+                        <Sparkles className="w-6 h-6 text-[var(--accent)] absolute inset-0 m-auto animate-pulse" />
+                      </div>
+                      <p className="text-sm font-bold tracking-widest text-[var(--accent)] uppercase">{t('images.painting')}</p>
+                   </div>
+                </motion.div>
+              )}
+              {images.map((img, idx) => (
+                <motion.figure 
+                  key={img.id} 
+                  layout
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.05 }}
+                  className="group relative glass rounded-3xl overflow-hidden border-white/5 hover:border-[var(--accent)]/30 transition-all shadow-xl"
+                >
+                  <button className="block w-full aspect-square overflow-hidden bg-black/40" onClick={() => setView(img)}>
+                    <motion.img 
+                      whileHover={{ scale: 1.05 }}
+                      src={img.url} 
+                      alt={img.meta?.prompt ?? img.name} 
+                      loading="lazy" 
+                      className="w-full h-full object-cover transition-all duration-700" 
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-4 flex flex-col justify-end">
+                       <div className="flex gap-2 justify-center">
+                          <button onClick={(e) => { e.stopPropagation(); setView(img); }} className="w-10 h-10 rounded-full glass flex items-center justify-center text-white hover:bg-[var(--accent)] transition-all">
+                             <Maximize2 className="w-4 h-4" />
+                          </button>
+                          <button onClick={(e) => { e.stopPropagation(); generate({ prompt: img.meta?.prompt, model: img.meta?.model, w: img.meta?.width, h: img.meta?.height }); }} className="w-10 h-10 rounded-full glass flex items-center justify-center text-white hover:bg-[var(--accent)] transition-all">
+                             <RefreshCw className="w-4 h-4" />
+                          </button>
+                       </div>
                     </div>
-                  </div>
-                </figcaption>
-              </figure>
-            ))}
+                  </button>
+                  <figcaption className="p-4 bg-black/20 backdrop-blur-md">
+                    <p className="text-[12px] text-soft line-clamp-1 leading-snug font-medium mb-2">{img.meta?.prompt || img.name}</p>
+                    <div className="flex items-center justify-between">
+                      <span className="chip !text-[10px] bg-white/5 border-none opacity-60">{img.meta?.model?.split("/").pop()}</span>
+                      <div className="flex gap-1">
+                        <IconBtn title="Analyze" onClick={() => { setView(img); analyze(img); }}><ScanSearch className="w-4 h-4" /></IconBtn>
+                        <a href={img.url} download={img.name} className="p-1.5 rounded-md hover:bg-white/10 text-muted transition-all" title="Download">
+                          <ArrowDownToLine className="w-4 h-4" />
+                        </a>
+                      </div>
+                    </div>
+                  </figcaption>
+                </motion.figure>
+              ))}
+            </AnimatePresence>
           </div>
         )}
       </section>

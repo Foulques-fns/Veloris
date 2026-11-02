@@ -4,7 +4,7 @@ import { checkQuota } from "@/lib/settings";
 import AppShell from "@/components/AppShell";
 import SettingsPage from "@/components/SettingsPage";
 
-export const metadata = { title: "Settings — VELORIS" };
+export const metadata = { title: "Réglages — VELORIS" };
 export const dynamic = "force-dynamic";
 
 export default async function Settings() {

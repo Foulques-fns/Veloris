@@ -1,28 +1,39 @@
-import type { Metadata, Viewport } from "next";
-import type { ReactNode } from "react";
+"use client";
+
+import { I18nProvider } from "@/context/I18nContext";
+import { ThemeProvider } from "@/context/ThemeContext";
+import { AnimatePresence, motion } from "framer-motion";
+import { usePathname } from "next/navigation";
 import "./globals.css";
-
-export const metadata: Metadata = {
-  title: "VELORIS — Your intelligent workspace",
-  description: "VELORIS — Chat, generate images, speech and more with AI.",
-  icons: { icon: "/logo.png", shortcut: "/logo.png", apple: "/logo.png" },
-};
-
-export const viewport: Viewport = {
-  themeColor: "#080706",
-  width: "device-width",
-  initialScale: 1,
-};
 
 const themeInit = `(function(){try{var t=localStorage.getItem('nova-theme')||'dark';document.documentElement.classList.toggle('light',t==='light');}catch(e){document.documentElement.classList.remove('light');}})()`;
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="fr" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInit }} />
       </head>
-      <body>{children}</body>
+      <body>
+        <I18nProvider>
+          <ThemeProvider>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={pathname}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                style={{ height: '100%', width: '100%' }}
+              >
+                {children}
+              </motion.div>
+            </AnimatePresence>
+          </ThemeProvider>
+        </I18nProvider>
+      </body>
     </html>
   );
 }

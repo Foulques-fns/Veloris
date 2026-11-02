@@ -3,7 +3,7 @@ import { err, json, readJson } from "@/lib/http";
 import { getDisabledModels, getFeatures, getQuotas, setSetting, type FeatureFlags, type PlanId, type QuotaConfig, type Quotas } from "@/lib/settings";
 import { listFreeAudioModels, listFreeChatModels, listFreeImageModels, listFreeVideoModels } from "@/lib/models";
 import { hasApiKey } from "@/lib/pollinations";
-import { smtpConfigured } from "@/lib/email";
+import { emailConfigured } from "@/lib/email";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,7 +26,7 @@ export async function GET() {
     features,
     disabled,
     models: { chat, image, audio, video },
-    provider: { keyConfigured: hasApiKey(), smtpConfigured: smtpConfigured() },
+    provider: { keyConfigured: hasApiKey(), emailConfigured: emailConfigured() },
   });
 }
 

@@ -4,16 +4,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import clsx from "clsx";
 import {
   ArrowDownToLine, AudioLines, Check, Copy, FileAudio, Loader2, Mic, Music4, Play,
-  RefreshCw, Sparkles, Square, Upload,
+  RefreshCw, Sparkles, Square, Upload, Volume2,
 } from "lucide-react";
-import { Badge, Spinner, toast } from "./ui";
+import { Badge, Spinner, toast, ActionButton } from "./ui";
 import { Markdown } from "./Markdown";
+import { motion, AnimatePresence } from "framer-motion";
+import { useI18n } from "@/context/I18nContext";
 
 type AudioModel = { id: string; title: string; kind: "tts" | "stt"; voices: string[]; health: string };
 type AudioFile = { id: string; url: string; name: string; createdAt: string; meta?: { text?: string; model?: string; voice?: string } };
 type Tab = "tts" | "stt" | "sfx";
 
 export default function AudioStudio({ charLimit }: { charLimit: number }) {
+  const { t } = useI18n();
   const [tab, setTab] = useState<Tab>("tts");
   const [models, setModels] = useState<AudioModel[]>([]);
   const [modelsError, setModelsError] = useState(false);
@@ -166,34 +169,36 @@ export default function AudioStudio({ charLimit }: { charLimit: number }) {
   const quotaLabel = quota ? (quota.limit === -1 ? `${quota.used} / ∞` : `${quota.used}/${quota.limit}`) : null;
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
+    <div className="max-w-6xl mx-auto px-4 py-12">
       {/* header */}
-      <div className="flex flex-wrap items-center gap-3 anim-fade-up">
-        <div className="w-11 h-11 rounded-xl grid place-items-center border border-[var(--border)]" style={{ background: "color-mix(in srgb,var(--accent) 10%, transparent)" }}>
-          <AudioLines className="w-5 h-5 text-[var(--accent)]" />
+      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-wrap items-center gap-6 mb-12">
+        <div className="w-14 h-14 rounded-2xl grid place-items-center glass relative border-[var(--accent)]/20 shadow-2xl">
+          <div className="absolute inset-0 gen-pulse opacity-10" />
+          <AudioLines className="w-7 h-7 text-[var(--accent)]" />
         </div>
         <div className="flex-1 min-w-[200px]">
-          <h1 className="font-semibold tracking-tight text-lg">Studio audio</h1>
-          <p className="text-[12px] text-muted">Voix, langues & transcription — modèles gratuits vérifiés en direct</p>
+          <h1 className="font-bold tracking-tight text-3xl grad-text" style={{ fontFamily: 'Georgia, serif' }}>{t('nav.audio')}</h1>
+          <p className="text-[13px] text-muted mt-1 uppercase tracking-widest font-semibold">{t('audio.tagline')}</p>
         </div>
-        {quotaLabel && (
-          <Badge tone={quota && quota.limit !== -1 && quota.used >= quota.limit ? "bad" : "accent"}>{quotaLabel} · voix/jour</Badge>
-        )}
-        <div className="flex rounded-xl border border-[var(--border)] overflow-hidden">
-          {([["tts", "Texte → Voix"], ["stt", "Transcription"], ["sfx", "Sons & SFX"]] as [Tab, string][]).map(([t, label]) => (
+        
+        <div className="flex glass p-1 rounded-2xl border-white/5">
+          {([["tts", "Synthèse"], ["stt", "Transcription"], ["sfx", "Effets"]] as [Tab, string][]).map(([t_key, label]) => (
             <button
-              key={t}
+              key={t_key}
               className={clsx(
-                "px-3.5 py-2 text-[12.5px] font-medium transition-colors",
-                tab === t ? "bg-[var(--accent)] text-white" : "text-muted hover:text-[var(--text)] hover:bg-[var(--panel)]",
+                "relative px-6 py-2.5 text-[12px] font-bold uppercase tracking-widest transition-all rounded-xl",
+                tab === t_key ? "text-white" : "text-muted hover:text-white"
               )}
-              onClick={() => setTab(t)}
+              onClick={() => setTab(t_key)}
             >
               {label}
+              {tab === t_key && (
+                <motion.div layoutId="audio-tab" className="absolute inset-0 bg-[var(--accent)] rounded-xl -z-10 shadow-[0_0_15px_var(--accent)]" transition={{ type: "spring", stiffness: 300, damping: 25 }} />
+              )}
             </button>
           ))}
         </div>
-      </div>
+      </motion.div>
 
       {modelsError && (
         <div className="mt-6 panel rounded-2xl p-5 flex items-center justify-between anim-fade-in">
@@ -202,176 +207,203 @@ export default function AudioStudio({ charLimit }: { charLimit: number }) {
         </div>
       )}
 
-      {tab === "tts" && (
-        <div className="grid lg:grid-cols-[380px_1fr] gap-6 mt-7 items-start">
-          {/* controls */}
-          <section className="panel rounded-2xl p-5 space-y-5 lg:sticky lg:top-20 anim-fade-up">
-            <div>
-              <label className="text-[12px] font-medium text-muted block mb-1.5">Texte à lire</label>
-              <textarea
-                className="input min-h-[110px] resize-y"
-                maxLength={charLimit}
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder="Écrivez le texte à transformer en voix — français, anglais, et plus selon le modèle…"
-              />
-              <p className="text-[11px] text-muted mt-1 text-right tabular-nums">{text.length}/{charLimit}</p>
-            </div>
-            <div>
-              <label className="text-[12px] font-medium text-muted block mb-1.5">Modèle vocal (gratuits uniquement)</label>
-              <select className="select-native" value={model?.id ?? ""} onChange={(e) => setModelId(e.target.value)}>
-                {ttsModels.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.title} · {m.voices.length} voix{m.health === "healthy" ? " · en ligne" : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {languages.length > 1 && (
+      <AnimatePresence mode="wait">
+        {tab === "tts" && (
+          <motion.div 
+            key="tts"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="grid lg:grid-cols-[380px_1fr] gap-6 mt-7 items-start"
+          >
+            {/* controls */}
+            <section className="panel rounded-2xl p-6 space-y-6 lg:sticky lg:top-24">
               <div>
-                <label className="text-[12px] font-medium text-muted block mb-1.5">Langue ({languages.length})</label>
-                <select className="select-native" value={lang} onChange={(e) => setLang(e.target.value)}>
-                  <option value="">Toutes les langues</option>
-                  {languages.map((l) => <option key={l} value={l}>{l}</option>)}
+                <label className="text-[10px] font-bold text-muted uppercase tracking-widest block mb-2">Texte à lire</label>
+                <textarea
+                  className="input min-h-[120px] resize-y glass border-white/5"
+                  maxLength={charLimit}
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  placeholder="Écrivez le texte à transformer en voix..."
+                />
+                <p className="text-[10px] text-muted mt-2 text-right font-mono tabular-nums">{text.length} / {charLimit}</p>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-muted uppercase tracking-widest block mb-2">Modèle vocal</label>
+                <select className="select-native font-semibold" value={model?.id ?? ""} onChange={(e) => setModelId(e.target.value)}>
+                  {ttsModels.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.title} · {m.voices.length} voix
+                    </option>
+                  ))}
                 </select>
               </div>
-            )}
-            {model && model.voices.length > 0 && (
-              <div>
-                <label className="text-[12px] font-medium text-muted block mb-1.5">Voix ({voices.length})</label>
-                <select className="select-native" value={voice} onChange={(e) => setVoice(e.target.value)}>
-                  {voices.map((v) => <option key={v} value={v}>{v}</option>)}
-                </select>
-              </div>
-            )}
-            <button className="btn btn-primary w-full !h-10 !rounded-lg" onClick={() => speak()} disabled={busy || !text.trim()}>
-              {busy ? (<><Loader2 className="w-4 h-4 animate-spin" /> Synthèse en cours…</>) : (<><Play className="w-4 h-4" /> Générer la voix</>)}
-            </button>
-            <p className="text-[11px] text-muted leading-relaxed">
-              Les voix localisées (fr-FR-*, en-US-*) viennent des modèles MAI Voice — 23 langues, 97 voix.
-            </p>
-          </section>
+              {languages.length > 1 && (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                  <label className="text-[10px] font-bold text-muted uppercase tracking-widest block mb-2">Langue</label>
+                  <select className="select-native" value={lang} onChange={(e) => setLang(e.target.value)}>
+                    <option value="">Toutes les langues</option>
+                    {languages.map((l) => <option key={l} value={l}>{l.toUpperCase()}</option>)}
+                  </select>
+                </motion.div>
+              )}
+              {model && model.voices.length > 0 && (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                  <label className="text-[10px] font-bold text-muted uppercase tracking-widest block mb-2">Voix</label>
+                  <select className="select-native" value={voice} onChange={(e) => setVoice(e.target.value)}>
+                    {voices.map((v) => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                </motion.div>
+              )}
+              <motion.button 
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="btn btn-primary w-full !h-12 !rounded-2xl" 
+                onClick={() => speak()} 
+                disabled={busy || !text.trim()}
+              >
+                {busy ? (<><Loader2 className="w-4 h-4 animate-spin" /> {t('common.loading')}</>) : (<><Play className="w-4 h-4" /> Générer la voix</>)}
+              </motion.button>
+            </section>
 
-          {/* results */}
-          <section className="space-y-3">
-            {busy && (
-              <div className="panel rounded-2xl p-5 anim-fade-in">
-                <div className="flex items-center gap-2.5 text-[13px] font-medium">
-                  <span className="gen-pulse rounded-full"><AudioLines className="w-4 h-4 text-[var(--accent)]" /></span>
-                  Synthèse vocale…
-                </div>
-                <div className="skeleton h-10 mt-3 rounded-xl" />
-              </div>
-            )}
-            {audios.length === 0 && !busy ? (
-              <div className="glass rounded-2xl p-12 text-center anim-fade-up">
-                <Music4 className="w-8 h-8 text-muted mx-auto" />
-                <p className="text-sm text-muted mt-3">Vos générations audio apparaîtront ici — avec écoute et téléchargement.</p>
-              </div>
-            ) : (
-              audios.map((a) => (
-                <div key={a.id} className="panel rounded-2xl p-4 anim-fade-up card-hover">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-[13px] text-soft truncate">« {a.meta?.text || a.name} »</p>
-                    <div className="flex items-center gap-0.5 shrink-0">
-                      <a href={a.url} download={a.name} className="p-1.5 rounded-md hover:bg-[var(--panel)] text-muted hover:text-[var(--text)]" title="Télécharger">
-                        <ArrowDownToLine className="w-4 h-4" />
-                      </a>
-                      <button className="p-1.5 rounded-md hover:bg-[var(--panel)] text-muted hover:text-[var(--text)]" title="Copier le texte" onClick={() => { navigator.clipboard.writeText(a.meta?.text ?? "").catch(() => {}); toast("Texte copié.", "ok"); }}>
-                        <Copy className="w-4 h-4" />
-                      </button>
+            {/* results */}
+            <section className="space-y-4">
+              <AnimatePresence>
+                {busy && (
+                  <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="panel rounded-3xl p-6 relative overflow-hidden">
+                    <div className="absolute inset-0 gen-pulse opacity-10" />
+                    <div className="flex items-center gap-3 text-sm font-bold text-[var(--accent)]">
+                      <Volume2 className="w-5 h-5 animate-bounce" /> Synthèse en cours...
                     </div>
-                  </div>
-                  <audio controls src={a.url} className="w-full mt-3 h-9" preload="none" />
-                  <div className="flex items-center justify-between mt-2">
-                    <p className="text-[10.5px] text-muted font-mono">{a.meta?.model?.split("/").pop()} · {a.meta?.voice}</p>
-                    <button className="btn !py-1 !px-2.5 !text-[11px]" onClick={() => speak(a.meta?.text)} title="Régénérer à l'identique">
-                      <RefreshCw className="w-3 h-3" /> Régénérer
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </section>
-        </div>
-      )}
+                    <div className="skeleton h-10 mt-4 rounded-xl" />
+                  </motion.div>
+                )}
+                {audios.length === 0 && !busy ? (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass rounded-[2rem] p-20 text-center border-white/5">
+                    <Music4 className="w-12 h-12 text-muted mx-auto mb-4 opacity-20" />
+                    <p className="text-muted font-medium italic">Vos chefs-d'œuvre sonores apparaîtront ici.</p>
+                  </motion.div>
+                ) : (
+                  audios.map((a, idx) => (
+                    <motion.div 
+                      key={a.id} 
+                      layout
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: idx * 0.05 }}
+                      className="glass rounded-3xl p-5 border-white/5 hover:border-[var(--accent)]/20 transition-all shadow-xl group"
+                    >
+                      <div className="flex items-center justify-between gap-4 mb-4">
+                        <p className="text-[14px] font-bold text-soft truncate flex-1">« {a.meta?.text || a.name} »</p>
+                        <div className="flex gap-1">
+                          <motion.a whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} href={a.url} download={a.name} className="p-2 rounded-xl glass hover:text-[var(--accent)] transition-all">
+                            <ArrowDownToLine className="w-4 h-4" />
+                          </motion.a>
+                          <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} className="p-2 rounded-xl glass hover:text-[var(--accent)] transition-all" onClick={() => { navigator.clipboard.writeText(a.meta?.text ?? "").catch(() => {}); toast("Copié.", "ok"); }}>
+                            <Copy className="w-4 h-4" />
+                          </motion.button>
+                        </div>
+                      </div>
+                      <audio controls src={a.url} className="w-full h-10 mb-4" preload="none" />
+                      <div className="flex items-center justify-between">
+                        <div className="flex gap-2">
+                           <span className="chip !text-[10px] bg-white/5 border-none">{a.meta?.model?.split("/").pop()}</span>
+                           <span className="chip !text-[10px] bg-white/5 border-none">{a.meta?.voice}</span>
+                        </div>
+                        <motion.button 
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          className="btn !h-8 !px-3 !text-[11px] !rounded-lg border-[var(--accent)]/20 text-[var(--accent)]" 
+                          onClick={() => speak(a.meta?.text)}
+                        >
+                          <RefreshCw className="w-3 h-3" /> Régénérer
+                        </motion.button>
+                      </div>
+                    </motion.div>
+                  ))
+                )}
+              </AnimatePresence>
+            </section>
+          </motion.div>
+        )}
 
-      {tab === "stt" && (
-        <div className="grid lg:grid-cols-2 gap-6 mt-7 items-start">
-          <section className="panel rounded-2xl p-5 space-y-4 anim-fade-up">
-            <div>
-              <label className="text-[12px] font-medium text-muted block mb-1.5">Modèle de transcription (gratuits uniquement)</label>
-              <select className="select-native" value={sttModel} onChange={(e) => setSttModel(e.target.value)}>
-                {sttModels.map((m) => (
-                  <option key={m.id} value={m.id}>{m.title}{m.health === "healthy" ? " · en ligne" : ""}</option>
-                ))}
-              </select>
-            </div>
-            <div
-              className={clsx(
-                "rounded-2xl border-2 border-dashed p-9 text-center transition-colors",
-                dragOver ? "border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_8%,transparent)]" : "border-[var(--border-strong)]",
-              )}
-              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={(e) => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files?.[0]; if (f) transcribeFile(f); }}
-            >
-              <Upload className="w-6 h-6 mx-auto text-muted" />
-              <p className="text-sm mt-3">Déposez un fichier audio ici, ou</p>
-              <label className="btn mt-3 cursor-pointer inline-flex">
-                <FileAudio className="w-4 h-4" /> Parcourir
-                <input type="file" hidden accept="audio/*,.mp3,.wav,.m4a,.ogg,.webm,.flac" onChange={(e) => { const f = e.target.files?.[0]; if (f) transcribeFile(f); e.target.value = ""; }} />
-              </label>
-              <p className="text-[11px] text-muted mt-3">MP3, WAV, M4A, OGG, WEBM · jusqu'à 24 Mo</p>
-            </div>
-            <button className={clsx("btn w-full !h-10 !rounded-lg", recording && "text-[var(--bad)] animate-pulse")} onClick={toggleRecord} disabled={sttBusy}>
-              {recording ? <><Square className="w-4 h-4" /> Arrêter l'enregistrement</> : <><Mic className="w-4 h-4" /> Enregistrer une note vocale</>}
-            </button>
-            {sttBusy && <div className="flex items-center gap-2 text-sm text-muted justify-center"><Spinner /> Transcription en cours…</div>}
-          </section>
-          <section className="panel rounded-2xl p-5 anim-fade-up min-h-[220px]">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-[13px] font-medium flex items-center gap-2"><Sparkles className="w-4 h-4 text-[var(--accent)]" /> Transcription</h3>
-              {transcript && (
-                <button className="btn !py-1.5 !px-3 !text-[12px]" onClick={() => { navigator.clipboard.writeText(transcript).catch(() => {}); toast("Copié.", "ok"); }}>
-                  <Copy className="w-3.5 h-3.5" /> Copier
-                </button>
-              )}
-            </div>
-            {transcript ? <Markdown content={transcript} /> : <p className="text-sm text-muted">Chargez ou enregistrez un audio — la transcription s'affichera ici.</p>}
-          </section>
-        </div>
-      )}
-
-      {tab === "sfx" && (
-        <div className="mt-7 max-w-2xl mx-auto anim-fade-up">
-          {freeSfxModels.length === 0 ? (
-            <div className="panel rounded-2xl p-10 text-center">
-              <div className="w-12 h-12 rounded-xl mx-auto grid place-items-center border border-[var(--border)]" style={{ background: "color-mix(in srgb,var(--accent) 10%,transparent)" }}>
-                <Music4 className="w-6 h-6 text-[var(--accent)]" />
+        {tab === "stt" && (
+          <motion.div 
+            key="stt"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            className="grid lg:grid-cols-2 gap-8 mt-7 items-start"
+          >
+            <section className="panel rounded-[2rem] p-8 space-y-6">
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-muted uppercase tracking-[0.2em]">{t('audio.transcribe_model') || 'Modèle de transcription'}</label>
+                <select className="select-native font-bold" value={sttModel} onChange={(e) => setSttModel(e.target.value)}>
+                  {sttModels.map((m) => (
+                    <option key={m.id} value={m.id}>{m.title}</option>
+                  ))}
+                </select>
               </div>
-              <h2 className="font-semibold mt-4">Musique &amp; effets sonores</h2>
-              <p className="text-sm text-muted mt-2 leading-relaxed max-w-md mx-auto">
-                La génération de sons à partir de prompts (« pluie sur une fenêtre », « ambiance forestière »…) nécessite un modèle dédié.
-                À ce jour, <b>tous</b> les modèles musique/SFX du catalogue officiel Pollinations (Sonilo, Stable Audio, ElevenLabs…) sont <b>payants</b> — et Nova n'utilise jamais de modèle payant en remplacement.
-              </p>
-              <p className="text-sm text-muted mt-3 leading-relaxed max-w-md mx-auto">
-                Cette section surveille le catalogue en continu : dès qu'un modèle SFX/musique <b>gratuit</b> sortira, il apparaîtra ici automatiquement et deviendra utilisable.
-              </p>
-              <div className="chip !px-3 !py-1.5 mt-4 inline-flex"><Check className="w-3 h-3 text-[var(--ok)]" /> Surveillance du catalogue activée</div>
+              <motion.div
+                whileHover={{ borderColor: "var(--accent)" }}
+                className={clsx(
+                  "rounded-[2rem] border-2 border-dashed p-12 text-center transition-all cursor-pointer relative overflow-hidden",
+                  dragOver ? "border-[var(--accent)] bg-[var(--accent)]/10" : "border-white/10 bg-white/2"
+                )}
+                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files?.[0]; if (f) transcribeFile(f); }}
+              >
+                <Upload className="w-10 h-10 mx-auto text-muted mb-4 opacity-50" />
+                <p className="text-sm font-bold mb-2">Glissez un fichier ici</p>
+                <label className="btn btn-primary !h-9 !rounded-xl cursor-pointer">
+                   Parcourir...
+                  <input type="file" hidden accept="audio/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) transcribeFile(f); e.target.value = ""; }} />
+                </label>
+              </motion.div>
+              <button className={clsx("btn w-full !h-12 !rounded-2xl font-black uppercase tracking-widest", recording && "text-red-500 shadow-[0_0_20px_red]")} onClick={toggleRecord}>
+                {recording ? <><Square className="w-4 h-4 fill-current" /> Stop</> : <><Mic className="w-4 h-4" /> Enregistrer</>}
+              </button>
+            </section>
+            
+            <section className="panel rounded-[2rem] p-8 min-h-[300px] flex flex-col">
+               <div className="flex items-center justify-between mb-6">
+                  <h3 className="font-bold flex items-center gap-3"><Sparkles className="w-5 h-5 text-[var(--accent)]" /> Résultat</h3>
+                  {transcript && <ActionButton title="Copy" icon={Copy} onClick={() => { navigator.clipboard.writeText(transcript); toast("Copié."); }} />}
+               </div>
+               <div className="flex-1">
+                 {sttBusy ? <div className="flex items-center gap-3 text-muted"><Spinner /> {t('audio.transcribing') || 'Analyse en cours...'}</div> : transcript ? <Markdown content={transcript} /> : <p className="text-muted italic opacity-40">En attente d'un fichier...</p>}
+               </div>
+            </section>
+          </motion.div>
+        )}
+
+        {tab === "sfx" && (
+          <motion.div 
+            key="sfx"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="mt-12 max-w-2xl mx-auto"
+          >
+            <div className="panel rounded-[3rem] p-16 text-center relative overflow-hidden">
+               <div className="absolute inset-0 bg-gradient-to-tr from-[var(--accent)]/5 to-transparent pointer-events-none" />
+               <div className="w-20 h-20 rounded-[2rem] mx-auto flex items-center justify-center bg-[var(--accent)]/10 border border-[var(--accent)]/20 mb-8">
+                 <Music4 className="w-10 h-10 text-[var(--accent)]" />
+               </div>
+               <h2 className="text-3xl font-black mb-4" style={{ fontFamily: 'Georgia, serif' }}>Sons & SFX</h2>
+               <p className="text-muted leading-relaxed mb-10">
+                 La magie sonore arrive. Nous attendons l'arrivée de modèles gratuits d'excellence pour la musique et les effets. 
+                 VELORIS garde un œil sur le catalogue Pollinations pour vous.
+               </p>
+               <div className="chip !px-6 !py-3 rounded-full border-[var(--accent)]/30 text-[var(--accent)] font-bold">
+                 <RefreshCw className="w-4 h-4 animate-spin-slow" /> SURVEILLANCE DU CATALOGUE ACTIVE
+               </div>
             </div>
-          ) : (
-            <div className="panel rounded-2xl p-6">
-              <h2 className="font-semibold mb-3">Modèles gratuits Sons/SFX détectés</h2>
-              <ul className="space-y-2">
-                {freeSfxModels.map((m) => (
-                  <li key={m.id} className="chip !text-[12px] !py-2 !px-3">{m.title} <span className="font-mono text-muted">{m.id}</span></li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

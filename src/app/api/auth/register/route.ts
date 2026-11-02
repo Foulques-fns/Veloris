@@ -2,7 +2,7 @@ import { db } from "@/db";
 import { users, verificationCodes } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { hashPassword, randomCode, sha256 } from "@/lib/password";
-import { sendVerificationEmail, smtpConfigured } from "@/lib/email";
+import { sendVerificationEmail, emailConfigured } from "@/lib/email";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { err, json, readJson } from "@/lib/http";
 import { getFeatures } from "@/lib/settings";
@@ -38,6 +38,7 @@ export async function POST(req: Request) {
     .returning({ id: users.id });
 
   const code = randomCode();
+  // 5-minute expiry, single-use, protected by attempt counter (max 8 wrong tries).
   const expiresAt = new Date(Date.now() + 5 * 60_000);
   // Invalidate previous codes for this email, then insert fresh one.
   await db.delete(verificationCodes).where(and(eq(verificationCodes.email, email), eq(verificationCodes.type, "verify")));
@@ -62,6 +63,6 @@ export async function POST(req: Request) {
     email,
     emailSent: sent,
     // Surface the code only when SMTP is not configured (local dev / self-host convenience).
-    devCode: process.env.NODE_ENV === "development" && !smtpConfigured() ? code : undefined,
+    devCode: emailConfigured() ? undefined : code,
   });
 }

@@ -3,7 +3,7 @@ import { getSessionUser } from "@/lib/session";
 import AppShell from "@/components/AppShell";
 import VideoStudio from "@/components/VideoStudio";
 
-export const metadata = { title: "Video — VELORIS" };
+export const metadata = { title: "Vidéo — VELORIS" };
 export const dynamic = "force-dynamic";
 
 export default async function VideoPage() {

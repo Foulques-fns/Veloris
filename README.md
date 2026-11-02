@@ -1,4 +1,4 @@
-# VELORIS — a complete full-stack AI assistant
+# Nova AI — a complete full-stack AI assistant
 
 A production-grade AI workspace built with **Next.js 16 (App Router) + PostgreSQL + Drizzle ORM**, powered by **free, open models via [Pollinations](https://gen.pollinations.ai)**.
 

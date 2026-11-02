@@ -21,6 +21,7 @@ import {
   generateImage,
   textToSpeech,
   transcribeAudio,
+  classicChatCompletionFallback,
   type ChatCompletionBody,
   type ChatMessage,
 } from "@/lib/pollinations";
@@ -178,8 +179,12 @@ export async function POST(req: Request) {
 
   const personality = body.personality || freshUser?.personality || "default";
   const custom = (body.customInstructions ?? freshUser?.customInstructions ?? "").trim().slice(0, 4000);
+  const userLang = req.headers.get("x-user-language") || "en";
+  
   let system = PERSONALITIES[personality] ?? PERSONALITIES.default;
-  system += " You reply in Markdown: use headings, lists, fenced code blocks with the language after the backticks, and tables when helpful.";
+  system += ` You are VELORIS, a premium AI assistant. You reply in Markdown: use headings, lists, fenced code blocks, and tables. 
+  IMPORTANT: You must respond in the user's preferred language (${userLang}) unless they explicitly speak to you in a different language.`;
+  
   if (custom) system += `\n\nUser's custom instructions:\n${custom}`;
 
   const providerMessages: ChatMessage[] = [{ role: "system", content: system }];
@@ -224,19 +229,62 @@ export async function POST(req: Request) {
   if (supported.has("reasoning_effort") && p.reasoningEffort) completion.reasoning_effort = p.reasoningEffort;
 
   // ── stream ─────────────────────────────────────────────────────────────
-  let upstream: Response;
+  let upstream: Response | null = null;
+  let fallbackText: string | null = null;
+  let fallbackModel: string | null = null;
   try {
     upstream = await chatCompletionStream(completion, user.id);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "AI provider error";
     await logApiError("/api/chat", msg, user.id);
-    return err(msg, 502);
+
+    try {
+      const classic = await classicChatCompletionFallback(completion, user.id);
+      fallbackText = `> Mode dégradé temporaire — réponse servie par le fallback Pollinations Classic.\n\n${classic.content}`;
+      fallbackModel = classic.model;
+    } catch (fallbackErr) {
+      const fmsg = fallbackErr instanceof Error ? fallbackErr.message : "Fallback unavailable";
+      fallbackText = `VELORIS ne peut pas répondre pour le moment : le provider principal Pollinations est indisponible, et le fallback gratuit est temporairement saturé.\n\n**Détail** : ${fmsg}\n\nRéessayez dans quelques secondes.`;
+      fallbackModel = "unavailable";
+      await logApiError("/api/chat:fallback", fmsg, user.id);
+    }
   }
-  if (!upstream.body) return err("AI provider returned no stream.", 502);
+  if (!upstream?.body && fallbackText == null) return err("AI provider returned no stream.", 502);
 
   const conversationId = convId;
-  const modelId = model.id;
+  const modelId = fallbackModel || model.id;
   const usageUserId = user.id;
+
+  // If we're in degraded fallback mode, emulate a tiny SSE stream so the chat UI
+  // still behaves normally instead of breaking with a 502.
+  if (fallbackText != null) {
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        const chunks = fallbackText!.split(/(\s+)/).filter(Boolean);
+        for (const chunk of chunks) {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { content: chunk } }] })}\n\n`));
+          await new Promise((r) => setTimeout(r, 8));
+        }
+        let messageId = "";
+        try {
+          const [saved] = await db
+            .insert(messages)
+            .values({ conversationId, role: "assistant", content: fallbackText!, model: modelId })
+            .returning({ id: messages.id });
+          messageId = saved.id;
+          await db.update(conversations).set({ updatedAt: new Date(), model: modelId }).where(eq(conversations.id, conversationId));
+          await recordUsage(usageUserId, "chat", modelId, { degraded: true });
+        } catch (e) {
+          await logApiError("/api/chat:fallback:persist", e, usageUserId);
+        }
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ nova: { conversationId, messageId, model: modelId, degraded: true } })}\n\n`));
+        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+        controller.close();
+      },
+    });
+    return new Response(stream, { headers: SSE_HEADERS });
+  }
 
   let full = "";
   let sseBuffer = "";
@@ -288,7 +336,7 @@ export async function POST(req: Request) {
     },
   });
 
-  const stream = upstream.body.pipeThrough(bridge);
+  const stream = upstream!.body!.pipeThrough(bridge);
   return new Response(stream, {
     headers: {
       "Content-Type": "text/event-stream; charset=utf-8",

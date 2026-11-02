@@ -41,7 +41,7 @@ export async function POST(req: Request) {
         model: model.id,
         max_tokens: 2048,
         messages: [
-          { role: "system", content: "You are VELORIS, a precise vision assistant. Analyze images thoroughly and respond in Markdown." },
+          { role: "system", content: "You are Nova, a precise vision assistant. Analyze images thoroughly and respond in Markdown." },
           {
             role: "user",
             content: [
