@@ -10,6 +10,7 @@ export interface ThemeColors {
   panel: string;
   text: string;
   glow: string;
+  matrixColor?: string; // hex colour for the binary rain
 }
 
 interface ThemeContextType {
@@ -30,6 +31,7 @@ const defaultThemes: Record<string, ThemeColors> = {
     panel: "#0A0908",
     text: "#F0EAD6",
     glow: "rgba(201, 162, 39, 0.5)",
+    matrixColor: "#00ff41",
   },
   midnight: {
     primary: "#3B82F6",
@@ -39,6 +41,7 @@ const defaultThemes: Record<string, ThemeColors> = {
     panel: "#0F172A",
     text: "#F8FAFC",
     glow: "rgba(59, 130, 246, 0.5)",
+    matrixColor: "#00aaff",
   },
   emerald: {
     primary: "#10B981",
@@ -48,6 +51,7 @@ const defaultThemes: Record<string, ThemeColors> = {
     panel: "#065F46",
     text: "#ECFDF5",
     glow: "rgba(16, 185, 129, 0.5)",
+    matrixColor: "#00ff88",
   },
   crimson: {
     primary: "#EF4444",
@@ -57,7 +61,18 @@ const defaultThemes: Record<string, ThemeColors> = {
     panel: "#7F1D1D",
     text: "#FEF2F2",
     glow: "rgba(239, 68, 68, 0.5)",
-  }
+    matrixColor: "#ff2244",
+  },
+  neon: {
+    primary: "#a855f7",
+    secondary: "#c084fc",
+    accent: "#7e22ce",
+    background: "#000000",
+    panel: "#0a000f",
+    text: "#f3e8ff",
+    glow: "rgba(168, 85, 247, 0.5)",
+    matrixColor: "#cc44ff",
+  },
 };
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
