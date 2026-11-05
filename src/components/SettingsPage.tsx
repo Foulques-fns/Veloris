@@ -177,6 +177,43 @@ export default function SettingsPage({ user, usage }: { user: User; usage: Usage
             <ColorPicker label="Texte" value={colors.text} onChange={(v) => setColors({...colors, text: v})} />
           </div>
         </div>
+
+        {/* Matrix colour */}
+        <div className="space-y-3">
+          <label className="text-[10px] font-bold text-muted uppercase tracking-widest">
+            🌧 Couleur du code binaire (chat)
+          </label>
+          <div className="glass rounded-2xl p-4 border-[var(--border)] space-y-4">
+            <ColorPicker
+              label="Couleur binaire"
+              value={colors.matrixColor ?? "#00ff41"}
+              onChange={(v) => setColors({ ...colors, matrixColor: v })}
+            />
+            <div className="grid grid-cols-5 gap-2">
+              {[
+                { label: "Matrix", value: "#00ff41" },
+                { label: "Cyber", value: "#00aaff" },
+                { label: "Neon", value: "#cc44ff" },
+                { label: "Fire", value: "#ff4422" },
+                { label: "Gold", value: "#ffcc00" },
+              ].map(c => (
+                <button
+                  key={c.value}
+                  type="button"
+                  onClick={() => setColors({ ...colors, matrixColor: c.value })}
+                  className={clsx(
+                    "flex flex-col items-center gap-1.5 p-2 rounded-xl border-2 transition-all",
+                    colors.matrixColor === c.value ? "border-[var(--accent)]" : "border-transparent hover:border-[var(--border)]"
+                  )}
+                >
+                  <div className="w-8 h-8 rounded-lg shadow-lg" style={{ backgroundColor: c.value, boxShadow: `0 0 10px ${c.value}80` }} />
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-muted">{c.label}</span>
+                </button>
+              ))}
+            </div>
+            <p className="text-[10px] text-muted">La couleur s'applique immédiatement à l'animation de code binaire visible en arrière-plan du chat.</p>
+          </div>
+        </div>
       </motion.section>
 
       {/* plan + usage */}
