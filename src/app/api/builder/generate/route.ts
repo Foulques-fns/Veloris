@@ -21,7 +21,7 @@ export async function POST(req: Request) {
 
   const hasExistingProject = body.projectFiles && Object.keys(body.projectFiles).length > 0;
   const existingFilesBlock = hasExistingProject
-    ? Object.entries(body.projectFiles!).map(([p, c]) => `\`\`\${p}\n\${c}\n\`\`\`).join("\n\n")
+    ? Object.entries(body.projectFiles!).map(([p, c]) => `\`\`\${p}\n${c}\n\`\`\`).join("\n\n")
     : "None";
 
   const systemPrompt = `You are an expert web developer AI. You build complete, production-quality, visually stunning web applications.
