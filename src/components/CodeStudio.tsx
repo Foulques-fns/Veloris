@@ -296,21 +296,25 @@ export default function CodeStudio() {
     : activeFile.endsWith(".js") ? languages.javascript
     : languages.markup;
 
-  return (
+   return (
     <div className="h-dvh bg-[#0a0a0a] text-white flex overflow-hidden">
       {/* ── Left sidebar: projects + chat ── */}
       <div className="w-80 border-r border-white/5 flex flex-col bg-[#050505]">
         {/* Header */}
         <div className="p-4 border-b border-white/5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <Logo size={28} animated={false} />
-            <VelorisWordmark size="sm" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/veloris-logo.png" alt="V" className="w-7 h-7 rounded-lg" />
+            <div>
+              <div className="text-[11px] font-black tracking-[0.2em] text-[var(--accent)] uppercase">Code Studio</div>
+              <div className="text-[8px] text-muted tracking-widest uppercase">VELORIS AI Builder</div>
+            </div>
           </div>
           <div className="flex items-center gap-1">
-            <Link href="/chat" className="p-2 hover:bg-white/5 rounded-lg text-muted transition-colors" title="Retour au chat">
+            <Link href="/chat" className="p-2 hover:bg-white/5 rounded-lg text-muted transition-colors" title="Chat">
               <MessageSquare className="w-4 h-4" />
             </Link>
-            <button onClick={() => createProject()} className="p-2 hover:bg-white/5 rounded-lg text-muted transition-colors" title="Nouveau projet">
+            <button onClick={() => createProject()} className="p-2 hover:bg-white/5 rounded-lg text-muted transition-colors" title="New project">
               <Plus className="w-4 h-4" />
             </button>
           </div>
@@ -318,10 +322,10 @@ export default function CodeStudio() {
 
         {/* Projects list */}
         <div className="border-b border-white/5">
-          <div className="px-4 py-2 text-[9px] uppercase tracking-[0.25em] text-muted font-black">Projets</div>
-          <div className="max-h-44 overflow-y-auto px-2 pb-2 space-y-0.5">
+          <div className="px-4 py-2 text-[9px] uppercase tracking-[0.25em] text-muted font-black">Projects</div>
+          <div className="max-h-36 overflow-y-auto px-2 pb-2 space-y-0.5">
             {projects.length === 0 && (
-              <p className="px-3 py-4 text-xs text-muted text-center">Aucun projet. Décrivez votre app ci-dessous.</p>
+              <p className="px-3 py-4 text-xs text-muted text-center">No projects yet. Describe your app below.</p>
             )}
             {projects.map(p => (
               <div key={p.id} className={clsx("group flex items-center rounded-lg px-3 py-2 cursor-pointer transition-all", project?.id === p.id ? "bg-[var(--accent)]/10 text-[var(--accent)]" : "hover:bg-white/5 text-muted")} onClick={() => loadProject(p.id)}>
@@ -349,10 +353,12 @@ export default function CodeStudio() {
               {/* Quick starters */}
               <div className="mt-4 space-y-1.5">
                 {[
-                  "Dashboard analytique premium",
-                  "Landing page e-commerce luxe",
-                  "App de gestion de tâches",
-                  "Calculatrice scientifique",
+                  "Build a luxury car brand landing page with hero, gallery, specs",
+                  "Create a crypto dashboard with charts, portfolio, transactions",
+                  "Build a complete task manager app with drag & drop",
+                  "Create a 3D product showcase website",
+                  "Build a restaurant website with menu, reservations, gallery",
+                  "Create an animated portfolio for a designer",
                 ].map(s => (
                   <button key={s} onClick={() => setUserInput(s)} className="w-full text-left px-3 py-2 rounded-lg text-[11px] text-muted hover:text-white hover:bg-white/5 transition-all border border-transparent hover:border-white/5">
                     → {s}
@@ -439,19 +445,54 @@ export default function CodeStudio() {
       <div className="flex-1 flex flex-col min-w-0">
         {/* Toolbar */}
         <div className="h-12 border-b border-white/5 bg-black/60 backdrop-blur-xl flex items-center px-4 gap-3">
-          {/* File tabs */}
+          {/* File tabs — show basename, with folder indicator on hover */}
           <div className="flex-1 flex items-center gap-1 overflow-x-auto min-w-0">
-            {project && Object.keys(project.files).map(f => (
-              <button key={f} onClick={() => setActiveFile(f)} className={clsx(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-mono whitespace-nowrap transition-all shrink-0",
-                activeFile === f && (view !== "preview")
-                  ? "bg-[var(--accent)]/15 text-[var(--accent)] border border-[var(--accent)]/30"
-                  : "text-muted hover:text-white hover:bg-white/5"
-              )}>
-                <FileCode className="w-3 h-3" />
-                {f}
+            {project && Object.keys(project.files).sort().map(f => {
+              const basename = f.split("/").pop() || f;
+              const dir = f.includes("/") ? f.split("/").slice(0, -1).join("/") + "/" : "";
+              return (
+                <button key={f} onClick={() => setActiveFile(f)} title={f} className={clsx(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-mono whitespace-nowrap transition-all shrink-0",
+                  activeFile === f && (view !== "preview")
+                    ? "bg-[var(--accent)]/15 text-[var(--accent)] border border-[var(--accent)]/30"
+                    : "text-muted hover:text-white hover:bg-white/5"
+                )}>
+                  <FileCode className="w-3 h-3" />
+                  {dir && <span className="text-[9px] opacity-40">{dir}</span>}
+                  {basename}
+                  <button
+                    className="ml-1 opacity-0 group-hover:opacity-100 hover:text-red-400"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!project) return;
+                      const next = { ...project.files };
+                      delete next[f];
+                      setProject({ ...project, files: next });
+                      if (activeFile === f) setActiveFile(Object.keys(next)[0] || "index.html");
+                    }}
+                    title="Delete file"
+                  >
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                </button>
+              );
+            })}
+            {/* Add file button */}
+            {project && (
+              <button
+                className="px-2 py-1.5 rounded-lg text-[11px] text-muted hover:text-white hover:bg-white/5 transition-all shrink-0"
+                onClick={() => {
+                  const name = window.prompt("File path (e.g. src/components/Header.jsx):");
+                  if (name && project) {
+                    setProject({ ...project, files: { ...project.files, [name.trim()]: "" } });
+                    setActiveFile(name.trim());
+                  }
+                }}
+                title="Add file"
+              >
+                <Plus className="w-3 h-3" />
               </button>
-            ))}
+            )}
           </div>
 
           {/* View controls */}
@@ -558,6 +599,7 @@ export default function CodeStudio() {
                     className="w-full h-full border-none"
                     sandbox="allow-scripts allow-modals allow-forms allow-same-origin"
                     style={{ minHeight: device === "mobile" ? 844 : "100%", display: "block" }}
+                    onError={() => toast("Preview error — check the console", "bad")}
                   />
                 </motion.div>
               </div>

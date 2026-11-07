@@ -54,15 +54,24 @@ const SUPPORTED_EXTS = new Set([
 
 /** Suggests a good base filename from the prompt. */
 function extractBaseName(prompt: string): string {
-  const cleaned = prompt
-    .replace(/^(cr[ée]{1,2}[ea]?|g[ée]n[eè]re?|[eé]cri(?:s|re?)?|fai[st]?)\s+(un[e]?\s+|le\s+|la\s+|mon\s+)?/i, "")
-    .replace(/\b(pour|avec|qui|qui|sur|dans|et|ou)\b.*$/i, "")
-    .trim()
-    .replace(/[^a-zA-Z0-9\s\-_éàèùâêîôûëïüç]/g, "")
+  // Strip verbs and filler at the start
+  let s = prompt
+    .replace(/^(cr[ée]{1,2}[ea]?|g[ée]n[eè]re?|[eé]cri(?:s|re?)?|fai[st]?|produis|r[eé]dige?)\s*(-\s*moi\s*|-\s*nous\s*)?\s*(un[e]?\s+|le\s+|la\s+|mon\s+|des\s+)?/i, "")
+    .trim();
+  // Strip file type words at start
+  s = s.replace(/^(document|fichier|tableur|pr[eé]sentation|script|page|rapport|archive|projet|code|base de donn[eé]es)\s+(word|excel|pdf|powerpoint|python|java|html|css|sql|lua|json|xml|csv|markdown|roblox|zip)?\s*/i, "").trim();
+  s = s.replace(/^(word|excel|pdf|powerpoint|python|java|html|css|sql|lua|json|xml|csv|markdown|roblox|zip)\s+/i, "").trim();
+  // Take first meaningful chunk (stop at "avec", "sur", "pour", "qui")
+  s = s.replace(/\s+(pour|avec|qui|sur|dans|et|ou|afin|permettant)\b.*/i, "").trim();
+  // Sanitize for filename
+  const cleaned = s
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // remove accents
+    .replace(/[^a-zA-Z0-9\s\-_]/g, "")
     .trim()
     .replace(/\s+/g, "-")
     .slice(0, 40)
     .toLowerCase()
+    .replace(/-+$/, "") // remove trailing hyphens
     || "veloris-file";
   return cleaned;
 }

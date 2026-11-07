@@ -22,7 +22,7 @@ type ChatModel = { id: string; title: string; vendor: string; vision: boolean; p
 type ImgModel = { id: string; title: string; health: string };
 type AudioModel = { id: string; title: string; kind: "tts" | "stt"; voices: string[]; health: string };
 type Attachment = { fileId: string; name: string; mime: string; kind: string; url: string; uploading?: boolean };
-type GeneratedFileInfo = { id: string; name: string; url: string; mime: string; fileType: string; prompt?: string };
+type GeneratedFileInfo = { id: string; name: string; url: string; mime: string; fileType: string; size?: number; prompt?: string };
 type Msg = {
   id: string; role: "user" | "assistant"; content: string; model?: string | null;
   attachments?: Attachment[] | null; meta?: { media?: ChatMedia; generatedFile?: GeneratedFileInfo } | null;
@@ -189,7 +189,7 @@ export default function ChatApp({ user }: { user: User }) {
         <div className="p-4" style={{ borderBottom: `1px solid ${ac}30` }}>
           <div className="flex items-center gap-2 mb-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/veloris-logo.png" alt="V" className="w-7 h-7 rounded-lg" />
+            <img src="/brand/veloris-logo.png" alt="V" className="w-7 h-7 rounded-lg" />
             <span className="text-[11px] font-black tracking-[0.3em] uppercase" style={{ color: ac }}>VELORIS</span>
           </div>
           <button onClick={newChat} className="w-full flex items-center justify-center gap-2 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all" style={{ border: `1px solid ${ac}60`, color: ac, background: "transparent" }} onMouseEnter={e => (e.currentTarget.style.background = `${ac}15`)} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
@@ -397,26 +397,53 @@ const FILE_ICONS: Record<string, string> = {
 };
 
 function FileInline({ file, ac }: { file: GeneratedFileInfo; ac: string }) {
+  const [downloading, setDownloading] = useState(false);
   const icon = FILE_ICONS[file.fileType] || "📁";
-  const sizeLabel = "";
+  const sizeKb = file.size ? `${(file.size / 1024).toFixed(1)} Ko` : "";
+
+  async function handleDownload() {
+    setDownloading(true);
+    try {
+      const res = await fetch(file.url);
+      if (!res.ok) throw new Error(`Download failed (${res.status})`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = file.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    } catch (e) {
+      toast("Erreur de téléchargement", "bad");
+    } finally {
+      setDownloading(false);
+    }
+  }
+
   return (
     <div className="mt-3 rounded-xl overflow-hidden" style={{ border: `1px solid ${ac}30` }}>
-      <div className="px-4 py-3 flex items-center gap-3" style={{ background: `${ac}08` }}>
-        <span className="text-2xl">{icon}</span>
+      <div className="px-4 py-4 flex items-center gap-4" style={{ background: `${ac}08` }}>
+        <span className="text-3xl select-none">{icon}</span>
         <div className="flex-1 min-w-0">
-          <div className="font-bold text-sm truncate" style={{ color: ac }}>{file.name}</div>
-          <div className="text-[10px] uppercase tracking-widest font-mono" style={{ color: `${ac}60` }}>{file.fileType.toUpperCase()} · AI-generated</div>
+          <div className="font-bold text-sm truncate mb-0.5" style={{ color: ac }}>{file.name}</div>
+          <div className="text-[10px] uppercase tracking-widest font-mono" style={{ color: `${ac}50` }}>
+            {file.fileType.toUpperCase()} · AI generated {sizeKb ? `· ${sizeKb}` : ""}
+          </div>
         </div>
-        <a
-          href={file.url}
-          download={file.name}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all"
-          style={{ border: `1px solid ${ac}50`, color: ac, background: `${ac}10` }}
-          onMouseEnter={e => { e.currentTarget.style.background = `${ac}25`; }}
-          onMouseLeave={e => { e.currentTarget.style.background = `${ac}10`; }}
+        <button
+          onClick={handleDownload}
+          disabled={downloading}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all disabled:opacity-50 shrink-0"
+          style={{ border: `1px solid ${ac}60`, color: ac, background: `${ac}15` }}
+          onMouseEnter={e => { if (!downloading) e.currentTarget.style.background = `${ac}30`; }}
+          onMouseLeave={e => { e.currentTarget.style.background = `${ac}15`; }}
         >
-          <ArrowDownToLine className="w-3.5 h-3.5" /> Download
-        </a>
+          {downloading
+            ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Chargement…</>
+            : <><ArrowDownToLine className="w-3.5 h-3.5" /> Télécharger</>}
+        </button>
       </div>
     </div>
   );

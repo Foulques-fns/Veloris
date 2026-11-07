@@ -157,7 +157,7 @@ import { motion } from "framer-motion";
 export function Logo({ size = 26, animated = true, className }: { size?: number, animated?: boolean, className?: string }) {
   const content = (
     <img
-      src="/veloris-logo.png"
+      src="/brand/veloris-logo.png"
       alt="VELORIS"
       width={size}
       height={size}
