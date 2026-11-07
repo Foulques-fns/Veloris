@@ -1,3 +1,4 @@
+
 import { getSessionUser } from "@/lib/session";
 import { err, readJson } from "@/lib/http";
 import { chatCompletionStream, hasApiKey } from "@/lib/pollinations";
@@ -19,100 +20,112 @@ export async function POST(req: Request) {
 
   if (!body?.prompt) return err("Prompt required.");
 
-  const hasExistingProject = body.projectFiles && Object.keys(body.projectFiles).length > 0;
+  const hasExistingProject =
+    body.projectFiles && Object.keys(body.projectFiles).length > 0;
+
   const existingFilesBlock = hasExistingProject
-<<<<<<< HEAD
-    ? Object.entries(body.projectFiles!).map(([p, c]) => `\`\`\`${p}\n${c}\n\`\`\``).join("\n\n")
+    ? Object.entries(body.projectFiles!).map(
+        ([p, c]) => `\`\`\`${p}\n${c}\n\`\`\``
+      ).join("\n\n")
     : "None";
 
-  const systemPrompt = `You are an elite AI developer — the most powerful web application builder ever created. You produce STUNNING, PROFESSIONAL, production-ready applications.
+  const systemPrompt = `You are an elite AI developer — the most powerful web application builder ever created. You produce stunning, professional, production-ready applications.
 
-━━━ MANDATORY OUTPUT FORMAT ━━━
+MANDATORY OUTPUT FORMAT
+
 Every single file must be wrapped EXACTLY like this:
+
 <<<FILE:path/filename.ext>>>
 [complete file content — never truncated]
 <<<END>>>
 
 After all files, write 1-2 sentences explaining what was built.
 
-━━━ TECHNICAL EXCELLENCE RULES ━━━
-1. ALWAYS complete files. Never "// ... rest of code" or placeholders.
-2. index.html MUST be fully self-contained and work in an iframe immediately.
-3. Use REAL, meaningful content — not lorem ipsum. Write actual copy, real data.
-4. Images via: https://image.pollinations.ai/prompt/{URL_ENCODED_DESCRIPTION}?width=1920&height=1080&nologo=true
-5. If modifying files: output COMPLETE content of every changed file.
+TECHNICAL EXCELLENCE RULES
 
-━━━ VISUAL EXCELLENCE — NON-NEGOTIABLE ━━━
-Every project must look EXCEPTIONAL. This means:
-• Dark, premium aesthetic with proper colour systems (not just bg-black text-white)
-• Sophisticated typography: multiple weights, sizes, tracking, line heights
-• Real depth: shadows, blurs, borders, gradients, layering
-• Smooth CSS animations: transitions, keyframes, transforms
-• Hover & focus states on EVERY interactive element
-• Loading states, skeletons, micro-interactions
-• Professional spacing system (8px grid)
-• Fully responsive: works on mobile, tablet, desktop
+1. ALWAYS provide complete files. Never use placeholders or omit code.
+2. index.html MUST be fully self-contained and work immediately in an iframe.
+3. Use real, meaningful content. Never use lorem ipsum.
+4. Images can use:
+https://image.pollinations.ai/prompt/{URL_ENCODED_DESCRIPTION}?width=1920&height=1080&nologo=true
+5. When modifying files, output the COMPLETE content of every changed file.
+6. Ensure all interactive elements actually work.
+7. Write clean, maintainable, modern code.
+8. Avoid unnecessary dependencies.
 
-━━━ CDN LIBRARIES (always inject into <head> as needed) ━━━
-Tailwind: <script src="https://cdn.tailwindcss.com"></script>
-GSAP (animations): <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
-GSAP ScrollTrigger: <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/ScrollTrigger.min.js"></script>
-Three.js: <script type="module" src="https://cdn.jsdelivr.net/npm/three@latest/build/three.module.js"></script>
-Chart.js: <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-Alpine.js: <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
-Lucide: <script src="https://unpkg.com/lucide@latest"></script>
-Swiper: <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css"> + <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+VISUAL EXCELLENCE — NON-NEGOTIABLE
 
-━━━ WHAT TO BUILD ━━━
-Websites → Full pages: hero, features, pricing, testimonials, footer. Each section animated.
-Dashboards → Real charts, real data, sidebar nav, top bar, stat cards, tables.
-Apps → Proper state management with Alpine.js or vanilla JS. Forms that validate. Routing.
-Games → Canvas or DOM-based. Working game loop, scoring, game states.
-3D → Three.js scenes with lighting, materials, animations, interactivity.
+Every project must look exceptional:
 
-━━━ CURRENT PROJECT ━━━
-=======
-    ? Object.entries(body.projectFiles!).map(([p, c]) => "```" + p + "\n" + c + "\n```").join("\n\n")
-    : "None";
+- Premium visual identity and coherent colour systems.
+- Sophisticated typography and professional spacing.
+- Real depth using shadows, blur, borders and gradients.
+- Smooth CSS animations, transitions and transforms.
+- Hover and focus states on interactive elements.
+- Loading states, skeletons and micro-interactions.
+- Responsive layouts for mobile, tablet and desktop.
+- Consistent components and visual hierarchy.
 
-  const systemPrompt = `You are an expert web developer AI. You build complete, production-quality, visually stunning web applications.
+CDN LIBRARIES (inject into HTML when appropriate)
 
-CRITICAL OUTPUT FORMAT — YOU MUST FOLLOW THIS EXACTLY:
-Every file you create or modify must be wrapped like this:
-<<<FILE:path/filename.ext>>>
-complete file content here
-<<<END>>>
+Tailwind:
+<script src="https://cdn.tailwindcss.com"></script>
 
-RULES:
-1. ALWAYS output complete file contents. Never truncate. Never use "// ... rest of code".
-2. ALWAYS create a self-contained index.html that works immediately in a browser.
-3. Use Tailwind CSS via CDN: <script src="https://cdn.tailwindcss.com"></script>
-4. For any JavaScript: write modern vanilla JS (ES6+). Include it inline in index.html or as separate .js files.
-5. For images: use https://image.pollinations.ai/prompt/{DESCRIPTION}?width=1200&height=800&nologo=true
-   Replace {DESCRIPTION} with a URL-encoded description of the image.
-6. Make things VISUALLY IMPRESSIVE: animations, gradients, hover effects, micro-interactions.
-7. Make it FULLY FUNCTIONAL: buttons work, forms validate, navigation works, state is managed.
-8. Use realistic content. No lorem ipsum. Write actual text, real feature names, real data.
-9. Add CSS animations where appropriate (fadeIn, slideUp, parallax, etc.)
-10. Ensure mobile responsiveness with proper breakpoints.
-11. If modifying: re-output COMPLETE content of every changed file. Never partial updates.
-12. After all files, write a brief explanation (1-3 sentences) of what was built/changed.
+GSAP:
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
 
-AVAILABLE LIBRARIES (reference by CDN if needed):
-- Tailwind CSS: https://cdn.tailwindcss.com
-- Alpine.js (great for interactivity): https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js
-- Chart.js: https://cdn.jsdelivr.net/npm/chart.js
-- Three.js: https://cdn.jsdelivr.net/npm/three@latest/build/three.module.js
-- GSAP: https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js
-- Lucide icons: https://unpkg.com/lucide@latest (call lucide.createIcons() after DOM ready)
+GSAP ScrollTrigger:
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/ScrollTrigger.min.js"></script>
 
-CURRENT PROJECT FILES:
->>>>>>> 493cbb1452273be4e7a293fd30a4dd9d7f2aab73
+Three.js:
+<script type="module" src="https://cdn.jsdelivr.net/npm/three@latest/build/three.module.js"></script>
+
+Chart.js:
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+Alpine.js:
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
+
+Lucide:
+<script src="https://unpkg.com/lucide@latest"></script>
+
+Swiper:
+https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js
+
+WHAT TO BUILD
+
+WEBSITES:
+- Complete pages with hero, features, pricing, testimonials and footer.
+- High-quality layouts and animations.
+
+DASHBOARDS:
+- Functional charts, navigation, statistics, tables and controls.
+- Responsive sidebar and top navigation.
+
+APPLICATIONS:
+- Proper state management.
+- Working forms and validation.
+- Functional navigation and interactions.
+
+GAMES:
+- Canvas or DOM-based game systems.
+- Working game loops, scoring and game states.
+
+3D:
+- Three.js scenes with lighting, materials, animations and interaction.
+
+CURRENT PROJECT FILES
+
+When existing project files are provided, inspect them carefully.
+Preserve existing architecture and functionality.
+Modify existing files when appropriate instead of unnecessarily rebuilding everything.
+Never overwrite unrelated files.
+
 ${existingFilesBlock}`;
 
   const messages = [
     { role: "system" as const, content: systemPrompt },
-    ...(body.conversationHistory || []).map(m => ({
+    ...(body.conversationHistory || []).map((m) => ({
       role: m.role as "user" | "assistant",
       content: m.content,
     })),
@@ -120,37 +133,43 @@ ${existingFilesBlock}`;
   ];
 
   try {
-    // Use the best available free model with maximum tokens
-    const upstream = await chatCompletionStream({
-      model: "openai/gpt-6.1-terra",
-      messages,
-      stream: true,
-      max_tokens: 32000,
-    }, user.id);
+    const upstream = await chatCompletionStream(
+      {
+        model: "openai/gpt-6.1-terra",
+        messages,
+        stream: true,
+        max_tokens: 32000,
+      },
+      user.id
+    );
 
     return new Response(upstream.body, {
       headers: {
         "Content-Type": "text/event-stream; charset=utf-8",
         "Cache-Control": "no-cache, no-transform",
-        "Connection": "keep-alive",
+        Connection: "keep-alive",
         "X-Accel-Buffering": "no",
       },
     });
   } catch (e) {
     await logApiError("/api/builder/generate", e, user.id);
-    // Fallback to nano if terra is unavailable
+
     try {
-      const fallback = await chatCompletionStream({
-        model: "openai/gpt-5.4-nano",
-        messages,
-        stream: true,
-        max_tokens: 16000,
-      }, user.id);
+      const fallback = await chatCompletionStream(
+        {
+          model: "openai/gpt-5.4-nano",
+          messages,
+          stream: true,
+          max_tokens: 16000,
+        },
+        user.id
+      );
+
       return new Response(fallback.body, {
         headers: {
           "Content-Type": "text/event-stream; charset=utf-8",
           "Cache-Control": "no-cache, no-transform",
-          "Connection": "keep-alive",
+          Connection: "keep-alive",
         },
       });
     } catch (e2) {
