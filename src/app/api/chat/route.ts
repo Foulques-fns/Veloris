@@ -27,6 +27,7 @@ import {
 } from "@/lib/pollinations";
 import { logApiError } from "@/lib/log";
 import { detectMediaIntent, type ChatMedia, type MediaIntent } from "@/lib/media-intent";
+import { detectFileIntent } from "@/lib/file-intent";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -175,6 +176,19 @@ export async function POST(req: Request) {
       requestedModel: body.model,
       requestedVoice: body.voice,
     });
+  }
+
+  // ── file generation intent? ───────────────────────────────────────────────
+  if (lastUserMsg?.role === "user" && mode !== "media") {
+    const fileIntent = detectFileIntent(lastUserMsg.content);
+    if (fileIntent) {
+      return respondWithFile({
+        fileIntent,
+        user,
+        convId,
+        conversationHistory: history.slice(-10).map(m => ({ role: m.role, content: typeof m.content === "string" ? m.content.slice(0, 1000) : "" })),
+      });
+    }
   }
 
   const personality = body.personality || freshUser?.personality || "default";
@@ -529,6 +543,102 @@ async function respondWithMedia(ctx: MediaCtx): Promise<Response> {
 
       controller.enqueue(encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\n`));
       send({ nova: { conversationId: convId, messageId, media } });
+      controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+      controller.close();
+    },
+  });
+
+  return new Response(stream, { headers: SSE_HEADERS });
+}
+
+/* ──────────────────────── file generation inside chat ──────────────────────── */
+
+type FileCtx = {
+  fileIntent: import("@/lib/file-intent").FileIntent;
+  user: { id: string; plan: PlanId };
+  convId: string;
+  conversationHistory: { role: string; content: string }[];
+};
+
+async function respondWithFile(ctx: FileCtx): Promise<Response> {
+  const encoder = new TextEncoder();
+  const { fileIntent, user, convId } = ctx;
+
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const send = (obj: unknown) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`));
+      send({ nova: { phase: "generating", media: "file", fileType: fileIntent.fileType, conversationId: convId } });
+
+      let text = "";
+      let generatedFile: { id: string; name: string; url: string; mime: string; fileType: string } | null = null;
+
+      try {
+        // Call the file generation API internally
+        const contextStr = ctx.conversationHistory.slice(-6).map(m => `${m.role}: ${m.content}`).join("\n");
+
+        const res = await fetch(`${process.env.APP_BASE_URL || "http://localhost:3000"}/api/files/generate`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            // Pass authentication via a special internal header
+            "x-internal-user-id": user.id,
+          },
+          body: JSON.stringify({
+            prompt: fileIntent.prompt,
+            fileType: fileIntent.fileType,
+            filename: fileIntent.baseName,
+            conversationContext: contextStr,
+          }),
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => null);
+          throw new Error(errData?.error || `File generation failed (${res.status})`);
+        }
+
+        const data = await res.json();
+        if (data.ok && data.file) {
+          generatedFile = data.file;
+          const typeLabels: Record<string, string> = {
+            docx: "document Word", pdf: "PDF", pptx: "présentation PowerPoint",
+            xlsx: "tableur Excel", csv: "fichier CSV", txt: "fichier texte",
+            md: "document Markdown", py: "script Python", js: "script JavaScript",
+            ts: "script TypeScript", html: "page HTML", sql: "script SQL",
+            lua: "script Lua", json: "fichier JSON", xml: "fichier XML",
+            zip: "archive ZIP", rbxlx: "projet Roblox", obj: "modèle 3D OBJ",
+            gltf: "scène glTF", stl: "modèle STL",
+          };
+          const label = typeLabels[fileIntent.fileType] || fileIntent.fileType.toUpperCase();
+          text = `Voici votre **${label}** généré : **${data.file.name}**\n\nLe fichier est prêt et téléchargeable ci-dessous.`;
+        } else {
+          throw new Error(data.error || "No file returned");
+        }
+      } catch (e) {
+        await logApiError("/api/chat:file", e, user.id);
+        const msg = e instanceof Error ? e.message : "Génération échouée";
+        text = `La génération du fichier a échoué : ${msg}\n\nRéessayez ou précisez davantage votre demande.`;
+      }
+
+      let messageId = "";
+      try {
+        const [saved] = await db
+          .insert(messages)
+          .values({
+            conversationId: convId,
+            role: "assistant",
+            content: text,
+            model: "file-generator",
+            meta: generatedFile ? ({ generatedFile } as Record<string, unknown>) : undefined,
+          })
+          .returning({ id: messages.id });
+        messageId = saved.id;
+        await db.update(conversations).set({ updatedAt: new Date() }).where(eq(conversations.id, convId));
+      } catch (e) {
+        await logApiError("/api/chat:file:persist", e, user.id);
+      }
+
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\n`));
+      send({ nova: { conversationId: convId, messageId, generatedFile } });
       controller.enqueue(encoder.encode("data: [DONE]\n\n"));
       controller.close();
     },
